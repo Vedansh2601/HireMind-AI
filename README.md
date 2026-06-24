@@ -19,11 +19,17 @@ HireMind AI helps recruiters by:
 ## 🏗️ Architecture
 
 Frontend (Next.js)
+
 ↓
+
 Backend (Node.js + Express)
+
 ↓
+
 AI Layer (Azure AI Foundry Agents)
+
 ↓
+
 MongoDB Atlas Database
 
 ---
@@ -66,11 +72,17 @@ backend/
 POST /api/candidate
 
 Request body:
+
 {
+
 "name": "John Doe",
+
 "email": "john@gmail.com",
+
 "skills": ["React", "Node.js"],
+
 "resumeText": "Frontend developer with experience"
+
 }
 
 ---
