@@ -8,6 +8,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const candidateRoutes = require("./routes/candidateRoutes");
+app.use("/api", candidateRoutes);
 // MongoDB connection
 mongoose
   .connect(process.env.MONGODB_URI)
