@@ -56,7 +56,7 @@ MongoDB Atlas Database
 ---
 
 ## 🧩 Backend Structure
-
+```text
 backend/
 ├── src/
 │ ├── models/ # MongoDB schemas
@@ -64,7 +64,7 @@ backend/
 │ ├── routes/ # API routes
 │ ├── services/ # AI / external services
 │ └── server.js # Entry point
-
+```
 ---
 
 ## 🔌 API Endpoints
@@ -72,7 +72,7 @@ backend/
 POST /api/candidate
 
 Request body:
-
+```text
 {
 
 "name": "John Doe",
@@ -84,7 +84,7 @@ Request body:
 "resumeText": "Frontend developer with experience"
 
 }
-
+```
 ---
 
 ## 🗄️ Database
