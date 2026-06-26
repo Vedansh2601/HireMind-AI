@@ -1,31 +1,24 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
 require("dotenv").config();
 
+const express = require("express");
+const cors = require("cors");
+const connectDB = require("./config/db");
+
 const app = express();
+
+connectDB();
 
 app.use(cors());
 app.use(express.json());
 
-const candidateRoutes = require("./routes/candidateRoutes");
-app.use("/api", candidateRoutes);
-// MongoDB connection
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log("MongoDB connected successfully");
-  })
-  .catch((err) => {
-    console.log("MongoDB connection error:", err);
-  });
 
 app.get("/", (req, res) => {
-  res.send("HireMind Backend is Running 🚀");
+    res.send("HireMind Backend Running 🚀");
 });
 
-const PORT = 5000;
+
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
