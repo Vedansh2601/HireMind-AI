@@ -3,6 +3,6 @@ const router = express.Router();
 
 const { runWorkflow } = require("../controllers/aiController");
 
-router.post("/run-ai", runWorkflow);
+router.post("/jobs/:jobId/run-ai", runWorkflow);
 
 module.exports = router;

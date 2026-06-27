@@ -1,128 +1,123 @@
 const axios = require("axios");
-
+const Application = require("../models/Application");
+const Job = require("../models/Job");
 
 const runWorkflow = async (req, res) => {
     try {
+        console.log("🚀 AI batch request received");
 
-        console.log("AI request received");
+        const jobId = req.params.jobId;
 
+        // 1. Get job
+        const job = await Job.findById(jobId);
 
-        // 1. Prepare clean input
+        if (!job) {
+            return res.status(404).json({
+                success: false,
+                message: "Job not found"
+            });
+        }
+
+        // 2. BLOCK AI if job is still OPEN
+        if (job.status !== "CLOSED") {
+            return res.status(400).json({
+                success: false,
+                message: "Job must be CLOSED before running AI"
+            });
+        }
+
+        // 3. Get all applications for this job
+        const applications = await Application.find({ jobId });
+
+        if (!applications.length) {
+            return res.status(400).json({
+                success: false,
+                message: "No applications found for this job"
+            });
+        }
+
+        // 4. Build clean AI input batch
         const payload = {
-            job_description: req.body.job_description,
-            candidates: req.body.candidates
+            job_description: job.description,
+            candidates: applications.map(app => ({
+                candidate_id: app.candidateId,
+                resumeText: app.resumeText
+            }))
         };
 
-
-        // 2. Call Python Azure workflow service
+        // 5. Call AI service
         const response = await axios.post(
             process.env.PYTHON_AI_URL,
             payload
         );
 
-
         const raw = response.data.result;
 
+        console.log("Raw AI response received");
 
-        console.log("Raw AI response:");
-        console.log(raw);
-
-
-
-        // 3. Extract JSON blocks from Azure response
-        const jsonBlocks = raw.match(
-            /\{[\s\S]*?\}(?=\s*\{|\s*$)/g
-        );
-
+        // 6. Parse AI response safely
+        const jsonBlocks = raw.match(/\{[\s\S]*?\}(?=\s*\{|\s*$)/g);
 
         const finalOutput = {
-            job_description: "",
-            candidates: [],
+            job_description: job.description,
             results: [],
             ranked_results: []
         };
 
-
         if (jsonBlocks) {
-
             jsonBlocks.forEach(block => {
-
                 try {
-
                     const parsed = JSON.parse(block);
 
-
-                    if (parsed.job_description) {
-                        finalOutput.job_description =
-                            parsed.job_description;
-                    }
-
-
-                    if (parsed.candidates) {
-                        finalOutput.candidates =
-                            parsed.candidates;
-                    }
-
-
                     if (parsed.results) {
-                        finalOutput.results =
-                            parsed.results;
+                        finalOutput.results = parsed.results;
                     }
-
 
                     if (parsed.ranked_results) {
-                        finalOutput.ranked_results =
-                            parsed.ranked_results;
+                        finalOutput.ranked_results = parsed.ranked_results;
                     }
 
-
-                } catch(error) {
-
-                    console.log(
-                        "Skipping invalid JSON block"
-                    );
-
+                } catch (err) {
+                    console.log("Skipping invalid JSON block");
                 }
-
             });
-
         }
 
+        // 7. Save AI results into DB
+        for (const result of finalOutput.ranked_results) {
+            await Application.findOneAndUpdate(
+                {
+                    jobId: jobId,
+                    candidateId: result.candidate_id
+                },
+                {
+                    aiResult: {
+                        finalScore: result.final_score,
+                        decision: result.decision,
+                        rank: result.rank,
+                        reason: result.reason,
+                        keyStrengths: result.key_strengths,
+                        keyWeaknesses: result.key_weaknesses
+                    }
+                },
+                { new: true }
+            );
+        }
 
-
-        // 4. Send clean response
-        res.json({
-
+        // 8. Return response
+        return res.json({
             success: true,
-
             data: finalOutput
-
         });
 
+    } catch (error) {
+        console.error("AI Controller Error:", error.message);
 
-
-    } catch(error) {
-
-
-        console.error(
-            "AI Controller Error:",
-            error.message
-        );
-
-
-        res.status(500).json({
-
-            success:false,
-
-            error:error.message
-
+        return res.status(500).json({
+            success: false,
+            error: error.message
         });
-
     }
 };
 
-
-
-module.exports = {
-    runWorkflow
-};
+module.exports = { runWorkflow };
