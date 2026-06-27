@@ -18,7 +18,7 @@ const runWorkflow = async (req, res) => {
             });
         }
 
-        // 2. BLOCK AI if job is still OPEN
+        // 2. BLOCK IF JOB NOT CLOSED
         if (job.status !== "CLOSED") {
             return res.status(400).json({
                 success: false,
@@ -26,7 +26,7 @@ const runWorkflow = async (req, res) => {
             });
         }
 
-        // 3. Get all applications for this job
+        // 3. Get applications
         const applications = await Application.find({ jobId });
 
         if (!applications.length) {
@@ -36,7 +36,7 @@ const runWorkflow = async (req, res) => {
             });
         }
 
-        // 4. Build clean AI input batch
+        // 4. Build AI payload
         const payload = {
             job_description: job.description,
             candidates: applications.map(app => ({
@@ -55,59 +55,67 @@ const runWorkflow = async (req, res) => {
 
         console.log("Raw AI response received");
 
-        // 6. Parse AI response safely
-        const jsonBlocks = raw.match(/\{[\s\S]*?\}(?=\s*\{|\s*$)/g);
-
-        const finalOutput = {
+        // 6. SAFE PARSING (FIXED)
+        let parsed = {
             job_description: job.description,
             results: [],
             ranked_results: []
         };
 
-        if (jsonBlocks) {
-            jsonBlocks.forEach(block => {
-                try {
-                    const parsed = JSON.parse(block);
+        try {
+            // Case 1: perfect JSON
+            parsed = JSON.parse(raw);
 
-                    if (parsed.results) {
-                        finalOutput.results = parsed.results;
-                    }
+        } catch (err) {
+            console.log("⚠️ AI returned broken JSON, fixing...");
 
-                    if (parsed.ranked_results) {
-                        finalOutput.ranked_results = parsed.ranked_results;
-                    }
+            try {
+                // Case 2: multiple JSON objects stuck together
+                const fixed = `[${raw.replace(/\}\s*\{/g, "},{")}]`;
+                const arr = JSON.parse(fixed);
 
-                } catch (err) {
-                    console.log("Skipping invalid JSON block");
-                }
-            });
+                arr.forEach(obj => {
+                    if (obj.results) parsed.results = obj.results;
+                    if (obj.ranked_results) parsed.ranked_results = obj.ranked_results;
+                });
+
+            } catch (e) {
+                console.log("❌ Failed to parse AI response completely");
+            }
         }
 
-        // 7. Save AI results into DB
-        for (const result of finalOutput.ranked_results) {
-            await Application.findOneAndUpdate(
-                {
-                    jobId: jobId,
-                    candidateId: result.candidate_id
-                },
-                {
-                    aiResult: {
-                        finalScore: result.final_score,
-                        decision: result.decision,
-                        rank: result.rank,
-                        reason: result.reason,
-                        keyStrengths: result.key_strengths,
-                        keyWeaknesses: result.key_weaknesses
+        // 7. SAVE TO DB
+        for (const result of parsed.ranked_results) {
+            try {
+                await Application.findOneAndUpdate(
+                    {
+                        jobId: jobId,
+                        candidateId: result.candidate_id
+                    },
+                    {
+                        aiResult: {
+                            finalScore: result.final_score,
+                            decision: result.decision,
+                            rank: result.rank,
+                            reason: result.reason,
+                            keyStrengths: result.key_strengths,
+                            keyWeaknesses: result.key_weaknesses
+                        }
+                    },
+                    {
+                        upsert: true,
+                        new: true
                     }
-                },
-                { new: true }
-            );
+                );
+            } catch (err) {
+                console.log("DB update error:", err.message);
+            }
         }
 
-        // 8. Return response
+        // 8. RESPONSE
         return res.json({
             success: true,
-            data: finalOutput
+            data: parsed
         });
 
     } catch (error) {

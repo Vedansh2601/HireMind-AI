@@ -4,16 +4,23 @@ const router = express.Router();
 const {
     createJob,
     closeJob,
-    getOpenJobs
+    getOpenJobs,
+    getAllJobs
 } = require("../controllers/jobController");
 
-// Recruiter creates job
-router.post("/jobs", createJob);
+const { runWorkflow } = require("../controllers/aiController"); 
 
-// Recruiter closes job
-router.patch("/jobs/:jobId/close", closeJob);
+const adminAuth = require("../middleware/adminAuth");
 
-// Candidate sees only open jobs
+// 👤 PUBLIC ROUTE (candidates)
 router.get("/jobs/open", getOpenJobs);
+
+// 🧑‍💼 RECRUITER ROUTES (protected)
+router.post("/jobs", adminAuth, createJob);
+router.patch("/jobs/:jobId/close", adminAuth, closeJob);
+
+router.get("/jobs", adminAuth, getAllJobs);
+
+router.post("/jobs/:jobId/run-ai", adminAuth, runWorkflow);
 
 module.exports = router;

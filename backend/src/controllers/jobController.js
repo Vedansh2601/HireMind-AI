@@ -67,8 +67,26 @@ const getOpenJobs = async (req, res) => {
     }
 };
 
+const getAllJobs = async (req, res) => {
+    try {
+        const jobs = await Job.find().sort({ createdAt: -1 });
+
+        res.json({
+            success: true,
+            jobs
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 module.exports = {
     createJob,
     closeJob , 
-    getOpenJobs
+    getOpenJobs , 
+    getAllJobs
 };
