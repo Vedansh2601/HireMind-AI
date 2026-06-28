@@ -24,6 +24,22 @@ const applicationSchema = new mongoose.Schema(
         type: Number
       },
 
+      matchedSkills: {
+        type: [String]
+      },
+
+      missingSkills: {
+        type: [String]
+      },
+
+      experienceMatch: {
+        type: String
+      },
+
+      summary: {
+        type: String
+      },
+
       finalScore: {
         type: Number
       },

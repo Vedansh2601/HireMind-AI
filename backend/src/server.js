@@ -11,8 +11,10 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 
+const authRoutes = require("./routes/authRoutes");
 const jobRoutes = require("./routes/jobRoutes");
 
+app.use("/api", authRoutes);
 app.use("/api", jobRoutes);
 
 const candidateRoutes = require("./routes/candidateRoutes");
@@ -20,10 +22,6 @@ const applicationRoutes = require("./routes/applicationRoutes");
 
 app.use("/api", candidateRoutes);
 app.use("/api", applicationRoutes);
-
-const aiRoutes = require("./routes/aiRoutes");
-
-app.use("/api", aiRoutes);
 
 
 app.get("/", (req, res) => {
