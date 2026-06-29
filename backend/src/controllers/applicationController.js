@@ -1,10 +1,34 @@
 const Application = require("../models/Application");
 const Candidate = require("../models/Candidate");
 const Job = require("../models/Job");
+const pdfParse = require("pdf-parse");
 
 const createApplication = async (req, res) => {
   try {
-    const { name, email, phone, jobId, resumeText } = req.body;
+    const { name, email, phone, jobId } = req.body;
+
+    // Resume can arrive as an uploaded PDF (req.file, via multer) or as
+    // plain resumeText in the body (used by curl/console testing).
+    let resumeText = req.body.resumeText || "";
+
+    if (req.file) {
+      try {
+        const parsed = await pdfParse(req.file.buffer);
+        resumeText = parsed.text.replace(/\s+/g, " ").trim();
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          message: "Could not read the uploaded PDF. Please try a different file."
+        });
+      }
+    }
+
+    if (!resumeText) {
+      return res.status(400).json({
+        success: false,
+        message: "A resume file or resumeText is required"
+      });
+    }
 
     // 1. Validate job exists
     const job = await Job.findById(jobId);
@@ -32,6 +56,19 @@ const createApplication = async (req, res) => {
         name,
         email,
         phone
+      });
+    }
+
+    // 3b. Block duplicate applications — one candidate, one application per job
+    const existing = await Application.findOne({
+      candidateId: candidate._id,
+      jobId
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "You've already applied to this job"
       });
     }
 

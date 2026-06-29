@@ -1,22 +1,57 @@
 @import "tailwindcss";
 
-
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  /* Ink — base surfaces */
+  --ink: #10141a;
+  --panel: #171c24;
+  --panel-2: #1e2530;
+  --line: #2b3340;
+
+  /* Text */
+  --text: #eceff3;
+  --text-dim: #8b96a3;
+
+  /* Signal — the one bold accent, used sparingly */
+  --signal: #e2a33d;
+  --signal-dim: rgba(226, 163, 61, 0.15);
+
+  /* Status (muted, not neon) */
+  --good: #5fbe8a;
+  --good-dim: rgba(95, 190, 138, 0.15);
+  --bad: #d9716b;
+  --bad-dim: rgba(217, 113, 107, 0.15);
+
+  /* Type */
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, Arial;
+  background:
+    radial-gradient(ellipse 1200px 600px at 20% -10%, rgba(226, 163, 61, 0.06), transparent),
+    radial-gradient(ellipse 1000px 700px at 100% 0%, rgba(226, 163, 61, 0.04), transparent),
+    var(--ink);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+}
+
+@keyframes hm-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hm-fade-in {
+  animation: hm-fade-in 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-fade-in {
+    animation: none;
+  }
 }

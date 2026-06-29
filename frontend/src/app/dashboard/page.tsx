@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import {
+  IconBriefcase, IconBuilding, IconClock, IconBot,
+  IconGrid, IconList, IconPlus, IconRefresh,
+  IconPencil, IconLogout, IconClose, IconCheck
+} from "../components/icons";
 
 // ── Types ────────────────────────────────────────────────────────────────
 interface Job {
@@ -44,16 +49,16 @@ const API = "http://localhost:5000/api";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 function scoreColor(score: number): string {
-  if (score >= 70) return "#10B981";
-  if (score >= 40) return "#F59E0B";
-  return "#EF4444";
+  if (score >= 70) return "#5fbe8a";
+  if (score >= 40) return "#e2a33d";
+  return "#d9716b";
 }
 
 function decisionColors(decision?: string) {
-  if (decision === "SHORTLIST") return { bg: "#d1fae5", text: "#065f46", border: "#6ee7b7" };
-  if (decision === "REJECT") return { bg: "#fee2e2", text: "#991b1b", border: "#fca5a5" };
-  if (decision === "REVIEW") return { bg: "#fef3c7", text: "#92400e", border: "#fcd34d" };
-  return { bg: "#f3f4f6", text: "#6b7280", border: "#e5e7eb" };
+  if (decision === "SHORTLIST") return { bg: "rgba(95,190,138,0.15)", text: "#5fbe8a", border: "rgba(95,190,138,0.4)" };
+  if (decision === "REJECT") return { bg: "rgba(217,113,107,0.15)", text: "#d9716b", border: "rgba(217,113,107,0.4)" };
+  if (decision === "REVIEW") return { bg: "rgba(226,163,61,0.15)", text: "#e2a33d", border: "rgba(226,163,61,0.4)" };
+  return { bg: "rgba(148,163,184,0.15)", text: "#8b96a3", border: "#2b3340" };
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────
@@ -64,14 +69,14 @@ function Toast({ message, type }: { message: string; type: "success" | "danger" 
         position: "fixed",
         bottom: 20,
         right: 20,
-        background: "#fff",
-        border: `1px solid ${type === "danger" ? "#f87171" : "#e5e7eb"}`,
+        background: "#171c24",
+        border: `1px solid ${type === "danger" ? "#d9716b" : "#2b3340"}`,
         borderRadius: 8,
         padding: "10px 16px",
         fontSize: 13,
         boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
         zIndex: 9999,
-        color: "#111",
+        color: "#eceff3",
       }}
     >
       {message}
@@ -82,29 +87,83 @@ function Toast({ message, type }: { message: string; type: "success" | "danger" 
 function ScoreRing({ score }: { score: number }) {
   const r = 20;
   const circ = 2 * Math.PI * r;
-  const fill = circ * (Math.min(Math.max(score, 0), 100) / 100);
-  const color = scoreColor(score);
+  const clamped = Math.min(Math.max(score, 0), 100);
+  const fill = circ * (clamped / 100);
+  const color = scoreColor(clamped);
+
+  // Count up to the score instead of just appearing — respects reduced-motion.
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReduced) {
+      setDisplay(clamped);
+      return;
+    }
+
+    let raf: number;
+    const start = performance.now();
+    const duration = 600;
+    const step = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      setDisplay(Math.round(clamped * t));
+      if (t < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [clamped]);
+
+  const ticks = Array.from({ length: 10 }, (_, i) => i);
+  const litTicks = Math.round((clamped / 100) * 10);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-      <svg width="48" height="48" viewBox="0 0 48 48">
-        <circle cx="24" cy="24" r={r} fill="none" stroke="#e5e7eb" strokeWidth="4" />
-        <circle
-          cx="24"
-          cy="24"
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth="4"
-          strokeDasharray={`${fill} ${circ - fill}`}
-          strokeDashoffset={circ * 0.25}
-          strokeLinecap="round"
-        />
-        <text x="24" y="28" textAnchor="middle" fontSize="11" fontWeight="500" fill="#111">
-          {score}
-        </text>
+      <svg width="56" height="56" viewBox="0 0 56 56">
+        <g transform="translate(28,28)">
+          {ticks.map((i) => {
+            const angle = (-90 + i * 36) * (Math.PI / 180);
+            const lit = i < litTicks;
+            return (
+              <line
+                key={i}
+                x1={Math.cos(angle) * (r + 3)}
+                y1={Math.sin(angle) * (r + 3)}
+                x2={Math.cos(angle) * (r + 7)}
+                y2={Math.sin(angle) * (r + 7)}
+                stroke={lit ? color : "#2b3340"}
+                strokeWidth={1.6}
+                strokeLinecap="round"
+              />
+            );
+          })}
+          <circle r={r} fill="none" stroke="#2b3340" strokeWidth="4" />
+          <circle
+            r={r}
+            fill="none"
+            stroke={color}
+            strokeWidth="4"
+            strokeDasharray={`${fill} ${circ - fill}`}
+            strokeDashoffset={circ * 0.25}
+            strokeLinecap="round"
+            style={{ transition: "stroke-dasharray .6s ease-out" }}
+          />
+          <text
+            textAnchor="middle"
+            dominantBaseline="middle"
+            y={1}
+            fontSize="12"
+            fontWeight="600"
+            fill="#eceff3"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            {display}
+          </text>
+        </g>
       </svg>
-      <span style={{ fontSize: 9, color: "#9ca3af" }}>score</span>
+      <span style={{ fontSize: 9, color: "#8b96a3", fontFamily: "var(--font-mono)", letterSpacing: ".05em" }}>SCORE</span>
+
     </div>
   );
 }
@@ -116,17 +175,17 @@ function SkillTag({ label, matched }: { label: string; matched: boolean }) {
         fontSize: 10,
         padding: "2px 7px",
         borderRadius: 10,
-        background: matched ? "#d1fae5" : "#fee2e2",
-        color: matched ? "#065f46" : "#991b1b",
-        border: `1px solid ${matched ? "#6ee7b7" : "#fca5a5"}`,
+        background: matched ? "rgba(95,190,138,0.15)" : "rgba(217,113,107,0.15)",
+        color: matched ? "#5fbe8a" : "#d9716b",
+        border: `1px solid ${matched ? "rgba(95,190,138,0.4)" : "rgba(217,113,107,0.4)"}`,
       }}
     >
-      {matched ? "✓" : "✕"} {label}
+      {matched ? <IconCheck size={10} /> : <IconClose size={10} />} {label}
     </span>
   );
 }
 
-function CandidateCard({ app }: { app: ApplicationRow }) {
+function CandidateCard({ app, index = 0 }: { app: ApplicationRow; index?: number }) {
   const ai = app.aiResult;
   const score = ai?.finalScore ?? ai?.matchScore ?? 0;
   const color = scoreColor(score);
@@ -134,14 +193,23 @@ function CandidateCard({ app }: { app: ApplicationRow }) {
   const dc = decisionColors(decision);
   const name = app.candidateId?.name || `Candidate …${app._id.slice(-6)}`;
 
+  const stripeColor =
+    decision === "SHORTLIST" ? "#5fbe8a" :
+    decision === "REJECT" ? "#d9716b" :
+    "#e2a33d";
+
   return (
     <div
+      className="hm-fade-in"
       style={{
-        background: "#f9fafb",
-        border: "1px solid #e5e7eb",
+        background: "#171c24",
+        border: "1px solid #2b3340",
+        borderLeft: `3px solid ${stripeColor}`,
         borderRadius: 8,
-        padding: "1rem 1.25rem",
+        padding: "1rem 1.25rem 1rem 1.1rem",
         marginBottom: 10,
+        boxShadow: "0 8px 20px -10px rgba(0,0,0,0.6)",
+        animationDelay: `${index * 40}ms`,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
@@ -151,10 +219,10 @@ function CandidateCard({ app }: { app: ApplicationRow }) {
               <span
                 style={{
                   fontSize: 11,
-                  fontFamily: "monospace",
-                  color: "#9ca3af",
-                  background: "#fff",
-                  border: "1px solid #e5e7eb",
+                  fontFamily: "var(--font-mono)",
+                  color: "#8b96a3",
+                  background: "#171c24",
+                  border: "1px solid #2b3340",
                   borderRadius: 4,
                   padding: "1px 5px",
                 }}
@@ -177,19 +245,19 @@ function CandidateCard({ app }: { app: ApplicationRow }) {
               {decision || "PENDING"}
             </span>
           </div>
-          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: "#8b96a3", marginTop: 2 }}>
             {app.candidateId?.email}
           </div>
         </div>
         <ScoreRing score={score} />
       </div>
 
-      <div style={{ height: 4, background: "#e5e7eb", borderRadius: 2, overflow: "hidden", marginBottom: 4 }}>
+      <div style={{ height: 4, background: "#2b3340", borderRadius: 2, overflow: "hidden", marginBottom: 4 }}>
         <div style={{ height: "100%", width: `${score}%`, background: color, borderRadius: 2, transition: "width .4s" }} />
       </div>
 
       {ai?.experienceMatch && (
-        <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 8 }}>{ai.experienceMatch}</div>
+        <div style={{ fontSize: 11, color: "#8b96a3", marginBottom: 8 }}>{ai.experienceMatch}</div>
       )}
 
       {(ai?.matchedSkills?.length || ai?.missingSkills?.length) ? (
@@ -200,20 +268,20 @@ function CandidateCard({ app }: { app: ApplicationRow }) {
       ) : null}
 
       {ai?.summary && (
-        <p style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5, marginBottom: 8 }}>{ai.summary}</p>
+        <p style={{ fontSize: 12, color: "#8b96a3", lineHeight: 1.5, marginBottom: 8 }}>{ai.summary}</p>
       )}
 
       {ai?.reason && (
-        <p style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5, marginBottom: 8 }}>
+        <p style={{ fontSize: 12, color: "#8b96a3", lineHeight: 1.5, marginBottom: 8 }}>
           <b>AI reasoning:</b> {ai.reason}
         </p>
       )}
 
-      <p style={{ fontSize: 12, color: "#9ca3af", lineHeight: 1.5, marginBottom: 8 }}>
+      <p style={{ fontSize: 12, color: "#8b96a3", lineHeight: 1.5, marginBottom: 8 }}>
         <i>Resume: {app.resumeText}</i>
       </p>
 
-      {!ai && <p style={{ fontSize: 12, color: "#9ca3af" }}>AI has not screened this candidate yet.</p>}
+      {!ai && <p style={{ fontSize: 12, color: "#8b96a3" }}>AI has not screened this candidate yet.</p>}
     </div>
   );
 }
@@ -222,32 +290,38 @@ function JobCard({
   job,
   onClick,
   onClose,
+  index = 0,
 }: {
   job: Job;
   onClick: () => void;
   onClose?: (e: React.MouseEvent) => void;
+  index?: number;
 }) {
   const isOpen = job.status === "OPEN";
 
   return (
     <div
       onClick={onClick}
+      className="hm-fade-in"
       style={{
-        background: "#fff",
-        border: "1px solid #e5e7eb",
+        background: "#171c24",
+        border: "1px solid #2b3340",
+        borderTop: `2px solid ${isOpen ? "#5fbe8a" : "#3a4452"}`,
         borderRadius: 12,
         padding: "1.25rem",
         cursor: "pointer",
-        transition: "border-color .15s, transform .15s",
+        transition: "border-color .15s, transform .15s, box-shadow .15s",
         opacity: isOpen ? 1 : 0.75,
         position: "relative",
+        boxShadow: "0 10px 24px -12px rgba(0,0,0,0.6)",
+        animationDelay: `${index * 40}ms`,
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = "#6366f1";
+        (e.currentTarget as HTMLDivElement).style.borderColor = "#e2a33d";
         (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = "#e5e7eb";
+        (e.currentTarget as HTMLDivElement).style.borderColor = "#2b3340";
         (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
       }}
     >
@@ -261,19 +335,19 @@ function JobCard({
           padding: "3px 8px",
           borderRadius: 10,
           marginBottom: 10,
-          background: isOpen ? "#d1fae5" : "#f3f4f6",
-          color: isOpen ? "#065f46" : "#9ca3af",
+          background: isOpen ? "rgba(95,190,138,0.15)" : "rgba(148,163,184,0.15)",
+          color: isOpen ? "#5fbe8a" : "#8b96a3",
         }}
       >
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor" }} />
         {isOpen ? "Open" : "Closed"}
       </span>
 
-      <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }}>{job.title}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6, fontFamily: "var(--font-display)" }}>{job.title}</div>
       <p
         style={{
           fontSize: 12,
-          color: "#6b7280",
+          color: "#8b96a3",
           lineHeight: 1.5,
           marginBottom: 12,
           display: "-webkit-box",
@@ -285,20 +359,20 @@ function JobCard({
         {job.description}
       </p>
 
-      <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#9ca3af" }}>
-        {job.department && <span>🏢 {job.department}</span>}
-        {job.experience && <span>🕐 {job.experience}</span>}
+      <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#8b96a3" }}>
+        {job.department && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><IconBuilding /> {job.department}</span>}
+        {job.experience && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><IconClock /> {job.experience}</span>}
       </div>
 
       {isOpen && onClose && (
         <div
-          style={{ display: "flex", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}
+          style={{ display: "flex", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid #2b3340" }}
           onClick={(e) => e.stopPropagation()}
         >
           <button onClick={onClick} style={btnStyle}>View</button>
           <button
             onClick={onClose}
-            style={{ ...btnStyle, background: "#fee2e2", color: "#991b1b", borderColor: "#fca5a5" }}
+            style={{ ...btnStyle, background: "rgba(217,113,107,0.15)", color: "#d9716b", borderColor: "rgba(217,113,107,0.4)" }}
           >
             Close job
           </button>
@@ -315,9 +389,9 @@ const btnStyle: React.CSSProperties = {
   gap: 6,
   padding: "6px 12px",
   borderRadius: 8,
-  border: "1px solid #d1d5db",
-  background: "#fff",
-  color: "#111",
+  border: "1px solid #3a4452",
+  background: "#171c24",
+  color: "#eceff3",
   fontSize: 13,
   fontWeight: 500,
   cursor: "pointer",
@@ -325,17 +399,18 @@ const btnStyle: React.CSSProperties = {
 
 const btnPrimary: React.CSSProperties = {
   ...btnStyle,
-  background: "#4f46e5",
-  color: "#fff",
+  background: "#e2a33d",
+  color: "#10141a",
+  fontWeight: 600,
   borderColor: "transparent",
 };
 
 const inputStyle: React.CSSProperties = {
   padding: "8px 10px",
   borderRadius: 8,
-  border: "1px solid #e5e7eb",
-  background: "#f9fafb",
-  color: "#111",
+  border: "1px solid #2b3340",
+  background: "#171c24",
+  color: "#eceff3",
   fontSize: 13,
   fontFamily: "inherit",
   width: "100%",
@@ -344,7 +419,7 @@ const inputStyle: React.CSSProperties = {
 function Field({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5, ...style }}>
-      <label style={{ fontSize: 12, color: "#6b7280" }}>{label}</label>
+      <label style={{ fontSize: 12, color: "#8b96a3" }}>{label}</label>
       {children}
     </div>
   );
@@ -381,7 +456,7 @@ export default function RecruiterDashboard() {
 
   // Restore session
   useEffect(() => {
-    const saved = localStorage.getItem("recruiterToken");
+    const saved = sessionStorage.getItem("recruiterToken");
     if (saved) setToken(saved);
   }, []);
 
@@ -398,7 +473,7 @@ export default function RecruiterDashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem("recruiterToken", data.token);
+        sessionStorage.setItem("recruiterToken", data.token);
         setToken(data.token);
         setKeyInput("");
       } else {
@@ -410,7 +485,7 @@ export default function RecruiterDashboard() {
   };
 
   const logout = () => {
-    localStorage.removeItem("recruiterToken");
+    sessionStorage.removeItem("recruiterToken");
     setToken(null);
     setJobs([]);
     setPage("dashboard");
@@ -517,23 +592,23 @@ export default function RecruiterDashboard() {
   // ── Auth screen ──────────────────────────────────────────────────────
   if (!token) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#f3f4f6" }}>
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "2rem", width: 360 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#10141a" }}>
+        <div style={{ background: "#171c24", border: "1px solid #2b3340", borderRadius: 16, padding: "2rem", width: 360, boxShadow: "0 20px 50px -20px rgba(0,0,0,0.7)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "2rem" }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: "#4f46e5", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 18 }}>
-              💼
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: "#e2a33d", display: "flex", alignItems: "center", justifyContent: "center", color: "#10141a" }}>
+              <IconBriefcase size={18} />
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 500 }}>TalentOS</div>
-              <div style={{ fontSize: 11, color: "#9ca3af" }}>Recruiter Portal</div>
+              <div style={{ fontSize: 14, fontWeight: 600, fontFamily: "var(--font-display)" }}>HireMind <span style={{ color: "#e2a33d" }}>AI</span></div>
+              <div style={{ fontSize: 11, color: "#8b96a3" }}>Recruiter Portal</div>
             </div>
           </div>
 
-          <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: 6 }}>Sign in</h2>
-          <p style={{ fontSize: 13, color: "#6b7280", marginBottom: "1.5rem" }}>This portal is for authorized recruiters only.</p>
+          <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 6, fontFamily: "var(--font-display)" }}>Sign in</h2>
+          <p style={{ fontSize: 13, color: "#8b96a3", marginBottom: "1.5rem" }}>This portal is for authorized recruiters only.</p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 12 }}>
-            <label style={{ fontSize: 12, color: "#6b7280" }}>Admin key</label>
+            <label style={{ fontSize: 12, color: "#8b96a3" }}>Admin key</label>
             <input
               type="password"
               placeholder="Enter your admin key"
@@ -548,7 +623,7 @@ export default function RecruiterDashboard() {
             Sign in
           </button>
 
-          {loginError && <p style={{ color: "#991b1b", fontSize: 12, marginTop: 10 }}>{loginError}</p>}
+          {loginError && <p style={{ color: "#d9716b", fontSize: 12, marginTop: 10 }}>{loginError}</p>}
         </div>
         {toast && <Toast message={toast.msg} type={toast.type} />}
       </div>
@@ -559,7 +634,7 @@ export default function RecruiterDashboard() {
   const closedJobs = jobs.filter((j) => j.status === "CLOSED");
   const filteredJobs = jobFilter === "all" ? jobs : jobs.filter((j) => j.status === jobFilter);
 
-  const navItem = (label: string, icon: string, target: Page) => (
+  const navItem = (label: string, icon: React.ReactNode, target: Page) => (
     <div
       onClick={() => { setPage(target); setSelectedJob(null); setApplications([]); }}
       style={{
@@ -571,15 +646,17 @@ export default function RecruiterDashboard() {
         cursor: "pointer",
         fontSize: 13,
         marginBottom: 2,
-        background: page === target ? "#eef2ff" : "transparent",
-        color: page === target ? "#4f46e5" : "#6b7280",
+        background: page === target ? "rgba(226,163,61,0.18)" : "transparent",
+        color: page === target ? "#e2a33d" : "#8b96a3",
         fontWeight: page === target ? 500 : 400,
+        borderLeft: page === target ? "2px solid #e2a33d" : "2px solid transparent",
+        transition: "background .15s, color .15s",
       }}
     >
-      <span>{icon}</span>
+      <span style={{ display: "flex" }}>{icon}</span>
       {label}
       {target === "jobs" && openJobs.length > 0 && (
-        <span style={{ marginLeft: "auto", background: "#4f46e5", color: "#fff", fontSize: 10, padding: "2px 6px", borderRadius: 10 }}>
+        <span style={{ marginLeft: "auto", background: "#e2a33d", color: "#10141a", fontSize: 10, padding: "2px 6px", borderRadius: 10 }}>
           {openJobs.length}
         </span>
       )}
@@ -603,30 +680,31 @@ export default function RecruiterDashboard() {
           { label: "Total jobs", val: jobs.length, sub: "All time" },
           { label: "AI screenings", val: aiCount, sub: "This session" },
         ].map((s) => (
-          <div key={s.label} style={{ background: "#f9fafb", borderRadius: 8, padding: "1rem" }}>
-            <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>{s.label}</div>
+          <div key={s.label} className="hm-fade-in" style={{ background: "#171c24", borderRadius: 8, padding: "1rem", boxShadow: "0 8px 20px -10px rgba(0,0,0,0.55)", border: "1px solid #2b3340" }}>
+            <div style={{ fontSize: 12, color: "#8b96a3", marginBottom: 6 }}>{s.label}</div>
             <div style={{ fontSize: 22, fontWeight: 500 }}>{s.val}</div>
-            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 3 }}>{s.sub}</div>
+            <div style={{ fontSize: 11, color: "#8b96a3", marginTop: 3 }}>{s.sub}</div>
           </div>
         ))}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
         <span style={{ fontSize: 14, fontWeight: 500 }}>Open listings</span>
-        <button onClick={() => setPage("create")} style={btnPrimary}>＋ Post a job</button>
+        <button onClick={() => setPage("create")} style={{ ...btnPrimary, gap: 6 }}><IconPlus /> Post a job</button>
       </div>
 
       {openJobs.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "3rem", color: "#9ca3af" }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>💼</div>
+        <div style={{ textAlign: "center", padding: "3rem", color: "#8b96a3" }}>
+          <div style={{ marginBottom: 8, color: "#3a4452", display: "flex", justifyContent: "center" }}><IconBriefcase size={32} /></div>
           <p>No open jobs. Post one to get started.</p>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-          {openJobs.map((job) => (
+          {openJobs.map((job, i) => (
             <JobCard
               key={job._id}
               job={job}
+              index={i}
               onClick={() => openJobDetail(job)}
               onClose={(e) => { e.stopPropagation(); closeJob(job._id); }}
             />
@@ -650,8 +728,8 @@ export default function RecruiterDashboard() {
                 ...btnStyle,
                 fontSize: 12,
                 padding: "5px 10px",
-                borderColor: jobFilter === f ? "#6366f1" : "#d1d5db",
-                color: jobFilter === f ? "#4f46e5" : "#111",
+                borderColor: jobFilter === f ? "#e2a33d" : "#3a4452",
+                color: jobFilter === f ? "#e2a33d" : "#eceff3",
               }}
             >
               {f === "all" ? "All" : f.charAt(0) + f.slice(1).toLowerCase()}
@@ -661,13 +739,14 @@ export default function RecruiterDashboard() {
       </div>
 
       {filteredJobs.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "3rem", color: "#9ca3af" }}>No jobs match this filter.</div>
+        <div style={{ textAlign: "center", padding: "3rem", color: "#8b96a3" }}>No jobs match this filter.</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-          {filteredJobs.map((job) => (
+          {filteredJobs.map((job, i) => (
             <JobCard
               key={job._id}
               job={job}
+              index={i}
               onClick={() => openJobDetail(job)}
               onClose={(e) => { e.stopPropagation(); closeJob(job._id); }}
             />
@@ -679,8 +758,8 @@ export default function RecruiterDashboard() {
 
   // ── Create job page ──────────────────────────────────────────────────
   const renderCreate = () => (
-    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "1.5rem" }}>
-      <div style={{ fontSize: 14, fontWeight: 500, marginBottom: "1rem" }}>✏️ Post a new job</div>
+    <div style={{ background: "#171c24", border: "1px solid #2b3340", borderRadius: 12, padding: "1.5rem", boxShadow: "0 12px 30px -14px rgba(0,0,0,0.6)" }}>
+      <div style={{ fontSize: 14, fontWeight: 500, marginBottom: "1rem", display: "flex", alignItems: "center", gap: 8 }}><IconPencil /> Post a new job</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
         <Field label="Job title">
@@ -735,8 +814,8 @@ export default function RecruiterDashboard() {
           ← Back
         </button>
 
-        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
-          <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <div style={{ background: "#171c24", border: "1px solid #2b3340", borderRadius: 12, overflow: "hidden", boxShadow: "0 16px 40px -16px rgba(0,0,0,0.65)" }}>
+          <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #2b3340", display: "flex", alignItems: "flex-start", gap: 12 }}>
             <div style={{ flex: 1 }}>
               <span
                 style={{
@@ -748,39 +827,39 @@ export default function RecruiterDashboard() {
                   padding: "3px 8px",
                   borderRadius: 10,
                   marginBottom: 8,
-                  background: isOpen ? "#d1fae5" : "#f3f4f6",
-                  color: isOpen ? "#065f46" : "#9ca3af",
+                  background: isOpen ? "rgba(95,190,138,0.15)" : "rgba(148,163,184,0.15)",
+                  color: isOpen ? "#5fbe8a" : "#8b96a3",
                 }}
               >
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor" }} />
                 {isOpen ? "Open" : "Closed"}
               </span>
-              <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: 4 }}>{selectedJob.title}</h2>
-              <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#9ca3af" }}>
-                {selectedJob.department && <span>🏢 {selectedJob.department}</span>}
-                {selectedJob.experience && <span>🕐 {selectedJob.experience}</span>}
+              <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4, fontFamily: "var(--font-display)" }}>{selectedJob.title}</h2>
+              <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#8b96a3" }}>
+                {selectedJob.department && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><IconBuilding /> {selectedJob.department}</span>}
+                {selectedJob.experience && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><IconClock /> {selectedJob.experience}</span>}
               </div>
             </div>
 
             {isOpen && (
               <button
                 onClick={() => closeJob(selectedJob._id)}
-                style={{ ...btnStyle, background: "#fee2e2", color: "#991b1b", borderColor: "#fca5a5", fontSize: 12 }}
+                style={{ ...btnStyle, background: "rgba(217,113,107,0.15)", color: "#d9716b", borderColor: "rgba(217,113,107,0.4)", fontSize: 12, gap: 5 }}
               >
-                ✕ Close job
+                <IconClose size={11} /> Close job
               </button>
             )}
           </div>
 
           <div style={{ padding: "1.5rem" }}>
-            <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.6, marginBottom: "1rem" }}>{selectedJob.description}</p>
+            <p style={{ fontSize: 13, color: "#8b96a3", lineHeight: 1.6, marginBottom: "1rem" }}>{selectedJob.description}</p>
 
             {selectedJob.skills && (
               <div style={{ marginBottom: "1.5rem" }}>
-                <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>Required skills</div>
+                <div style={{ fontSize: 12, color: "#8b96a3", marginBottom: 6 }}>Required skills</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {selectedJob.skills.split(",").map((s) => (
-                    <span key={s} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 10, background: "#d1fae5", color: "#065f46", border: "1px solid #6ee7b7" }}>
+                    <span key={s} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 10, background: "rgba(95,190,138,0.15)", color: "#5fbe8a", border: "1px solid rgba(95,190,138,0.4)" }}>
                       {s.trim()}
                     </span>
                   ))}
@@ -791,8 +870,8 @@ export default function RecruiterDashboard() {
             {!isOpen && (
               <div
                 style={{
-                  background: "#f9fafb",
-                  border: "1px solid #e5e7eb",
+                  background: "#171c24",
+                  border: "1px solid #2b3340",
                   borderRadius: 8,
                   padding: "1.25rem",
                   display: "flex",
@@ -801,12 +880,12 @@ export default function RecruiterDashboard() {
                   marginBottom: "1rem",
                 }}
               >
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: "#ede9fe", color: "#5b21b6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
-                  🤖
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(226,163,61,0.15)", color: "#e2a33d", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <IconBot size={20} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>AI candidate screening</div>
-                  <div style={{ fontSize: 11, color: "#9ca3af" }}>Rank and score all applicants against this job's requirements</div>
+                  <div style={{ fontSize: 11, color: "#8b96a3" }}>Rank and score all applicants against this job's requirements</div>
                 </div>
                 <button
                   onClick={() => runAI(selectedJob._id)}
@@ -819,38 +898,38 @@ export default function RecruiterDashboard() {
             )}
 
             {isOpen && (
-              <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: "1rem" }}>
+              <p style={{ fontSize: 12, color: "#8b96a3", marginBottom: "1rem" }}>
                 Close this job to unlock AI screening.
               </p>
             )}
 
             {aiLoading && (
-              <div style={{ textAlign: "center", padding: "2rem", color: "#9ca3af", fontSize: 13 }}>
+              <div style={{ textAlign: "center", padding: "2rem", color: "#8b96a3", fontSize: 13 }}>
                 Screening candidates…
               </div>
             )}
 
             {!aiLoading && (
               <>
-                <div style={{ fontSize: 12, fontWeight: 500, color: "#9ca3af", margin: "1rem 0 0.5rem" }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: "#8b96a3", margin: "1rem 0 0.5rem" }}>
                   Applicants — {applications.length}
                 </div>
                 {applications.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "#9ca3af" }}>No applications yet.</p>
+                  <p style={{ fontSize: 13, color: "#8b96a3" }}>No applications yet.</p>
                 ) : (
                   applications
                     .slice()
                     .sort((a, b) => (a.aiResult?.rank ?? 999) - (b.aiResult?.rank ?? 999))
-                    .map((app) => (
+                    .map((app, i) => (
                       <div key={app._id}>
-                        <CandidateCard app={app} />
+                        <CandidateCard app={app} index={i} />
                         <div style={{ marginTop: -6, marginBottom: 14, paddingLeft: 4 }}>
-                          <label style={{ fontSize: 12, color: "#6b7280" }}>
+                          <label style={{ fontSize: 12, color: "#8b96a3" }}>
                             Recruiter decision:{" "}
                             <select
                               value={app.recruiterDecision || "PENDING"}
                               onChange={(e) => setDecision(app._id, e.target.value)}
-                              style={{ fontSize: 12, padding: "3px 6px", borderRadius: 6, border: "1px solid #d1d5db" }}
+                              style={{ fontSize: 12, padding: "3px 6px", borderRadius: 6, border: "1px solid #3a4452" }}
                             >
                               <option value="PENDING">PENDING</option>
                               <option value="SHORTLIST">SHORTLIST</option>
@@ -872,48 +951,48 @@ export default function RecruiterDashboard() {
 
   // ── Layout ───────────────────────────────────────────────────────────
   return (
-    <div style={{ display: "flex", height: "100vh", fontFamily: "system-ui, -apple-system, sans-serif", background: "#f3f4f6", color: "#111" }}>
-      <aside style={{ width: 220, flexShrink: 0, background: "#f9fafb", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", padding: "1.25rem 0" }}>
+    <div style={{ display: "flex", height: "100vh", fontFamily: "var(--font-body)", background: "#10141a", color: "#eceff3" }}>
+      <aside style={{ width: 220, flexShrink: 0, background: "#171c24", borderRight: "1px solid #2b3340", display: "flex", flexDirection: "column", padding: "1.25rem 0", boxShadow: "2px 0 24px -8px rgba(0,0,0,0.4)", zIndex: 1 }}>
         <div style={{ padding: "0 1.25rem 1.5rem", display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: "#4f46e5", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15 }}>
-            💼
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e2a33d", display: "flex", alignItems: "center", justifyContent: "center", color: "#10141a" }}>
+            <IconBriefcase size={15} />
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 500 }}>TalentOS</div>
-            <div style={{ fontSize: 11, color: "#9ca3af" }}>Recruiter Portal</div>
+            <div style={{ fontSize: 14, fontWeight: 600, fontFamily: "var(--font-display)" }}>HireMind <span style={{ color: "#e2a33d" }}>AI</span></div>
+            <div style={{ fontSize: 11, color: "#8b96a3" }}>Recruiter Portal</div>
           </div>
         </div>
 
         <nav style={{ flex: 1, padding: "0 0.75rem" }}>
-          <div style={{ fontSize: 10, fontWeight: 500, color: "#9ca3af", textTransform: "uppercase", letterSpacing: ".08em", padding: "0 0.5rem 0.5rem" }}>
+          <div style={{ fontSize: 10, fontWeight: 500, color: "#8b96a3", textTransform: "uppercase", letterSpacing: ".08em", padding: "0 0.5rem 0.5rem", fontFamily: "var(--font-mono)" }}>
             Overview
           </div>
-          {navItem("Dashboard", "⊞", "dashboard")}
-          {navItem("All jobs", "≡", "jobs")}
-          {navItem("Post a job", "＋", "create")}
+          {navItem("Dashboard", <IconGrid />, "dashboard")}
+          {navItem("All jobs", <IconList />, "jobs")}
+          {navItem("Post a job", <IconPlus />, "create")}
         </nav>
 
-        <div style={{ padding: "0.75rem 1.25rem", borderTop: "1px solid #e5e7eb", marginTop: "auto" }}>
+        <div style={{ padding: "0.75rem 1.25rem", borderTop: "1px solid #2b3340", marginTop: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#eef2ff", color: "#4f46e5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 500 }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(226,163,61,0.18)", color: "#e2a33d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 500 }}>
               RA
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 500 }}>Recruiter Admin</div>
-              <div style={{ fontSize: 11, color: "#9ca3af" }}>Full access</div>
+              <div style={{ fontSize: 11, color: "#8b96a3" }}>Full access</div>
             </div>
           </div>
         </div>
       </aside>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 1.5rem", height: 56, borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
-          <span style={{ fontSize: 15, fontWeight: 500, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 1.5rem", height: 56, borderBottom: "1px solid #2b3340", background: "rgba(23,28,36,0.85)", backdropFilter: "blur(8px)" }}>
+          <span style={{ fontSize: 16, fontWeight: 600, flex: 1, fontFamily: "var(--font-display)" }}>
             {{ dashboard: "Dashboard", jobs: "All jobs", create: "Post a job", detail: selectedJob?.title || "Job detail" }[page]}
           </span>
-          <button onClick={loadJobs} style={{ ...btnStyle, fontSize: 12, padding: "5px 10px" }}>↺ Refresh</button>
-          <button onClick={logout} style={{ ...btnStyle, fontSize: 12, padding: "5px 10px", background: "#fee2e2", color: "#991b1b", borderColor: "#fca5a5" }}>
-            Sign out
+          <button onClick={loadJobs} style={{ ...btnStyle, fontSize: 12, padding: "5px 10px", gap: 5 }}><IconRefresh /> Refresh</button>
+          <button onClick={logout} style={{ ...btnStyle, fontSize: 12, padding: "5px 10px", gap: 5, background: "rgba(217,113,107,0.15)", color: "#d9716b", borderColor: "rgba(217,113,107,0.4)" }}>
+            <IconLogout /> Sign out
           </button>
         </div>
 

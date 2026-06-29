@@ -159,7 +159,11 @@ const runWorkflow = async (req, res) => {
                             reason: result.reason,
                             keyStrengths: result.key_strengths,
                             keyWeaknesses: result.key_weaknesses
-                        }
+                        },
+                        // Defaults the recruiter's decision to whatever the AI
+                        // concluded, so there's nothing extra to click through —
+                        // the dropdown in the UI still lets the recruiter override it.
+                        recruiterDecision: result.decision
                     },
                     {
                         upsert: true,
