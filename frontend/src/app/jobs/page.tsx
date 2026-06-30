@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconClose, IconBuilding, IconClock } from "../components/icons";
+import { IconClose, IconBuilding, IconClock, IconUploadCloud, IconDocument } from "../components/icons";
 
 interface Job {
   _id: string;
@@ -26,9 +26,32 @@ export default function JobsPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState("");
   const [submitOk, setSubmitOk] = useState(false);
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handleFile = (file: File | null | undefined) => {
+    setFileError("");
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      setFileError("Only PDF files are supported.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setFileError("File is too large — max 5MB.");
+      return;
+    }
+    setResumeFile(file);
+  };
 
   useEffect(() => {
     fetch(`${API}/jobs/open`)
@@ -41,6 +64,7 @@ export default function JobsPage() {
   const openApply = (job: Job) => {
     setApplyJob(job);
     setName(""); setEmail(""); setPhone(""); setResumeFile(null);
+    setIsDragging(false); setFileError("");
     setSubmitMsg(""); setSubmitOk(false);
   };
 
@@ -191,15 +215,57 @@ export default function JobsPage() {
                 className="bg-[#10141a] border border-[#2b3340] rounded-lg px-3 py-2 text-sm placeholder:text-[#8b96a3] focus:outline-none focus:border-[#e2a33d]/60"
               />
 
-              <label className="text-sm">
-                <span className="block text-[#8b96a3] mb-1">Resume (PDF only)</span>
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                  className="block w-full text-sm text-[#8b96a3]"
-                />
-              </label>
+              <div>
+                <span className="block text-[#8b96a3] text-sm mb-1.5">Resume (PDF, max 5MB)</span>
+
+                {!resumeFile ? (
+                  <label
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      handleFile(e.dataTransfer.files?.[0]);
+                    }}
+                    className={`flex flex-col items-center justify-center gap-2 text-center rounded-xl border-2 border-dashed px-4 py-7 cursor-pointer transition-colors ${
+                      isDragging
+                        ? "border-[#e2a33d] bg-[#e2a33d]/10"
+                        : "border-[#2b3340] hover:border-[#3a4452] bg-[#10141a]"
+                    }`}
+                  >
+                    <IconUploadCloud size={24} className={isDragging ? "text-[#e2a33d]" : "text-[#8b96a3]"} />
+                    <span className="text-sm text-[#eceff3]">
+                      <span className="text-[#e2a33d] font-medium">Click to upload</span> or drag and drop
+                    </span>
+                    <span className="text-xs text-[#8b96a3]">PDF only</span>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => handleFile(e.target.files?.[0])}
+                      className="hidden"
+                    />
+                  </label>
+                ) : (
+                  <div className="flex items-center gap-3 rounded-xl border border-[#2b3340] bg-[#10141a] px-3.5 py-3">
+                    <div className="shrink-0 w-9 h-9 rounded-lg bg-[#e2a33d]/15 text-[#e2a33d] flex items-center justify-center">
+                      <IconDocument size={16} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-[#eceff3] truncate">{resumeFile.name}</div>
+                      <div className="text-xs text-[#8b96a3]" style={mono}>{formatSize(resumeFile.size)}</div>
+                    </div>
+                    <button
+                      onClick={() => { setResumeFile(null); setFileError(""); }}
+                      className="shrink-0 text-[#8b96a3] hover:text-[#d9716b] p-1"
+                      aria-label="Remove file"
+                    >
+                      <IconClose size={13} />
+                    </button>
+                  </div>
+                )}
+
+                {fileError && <p className="text-[#d9716b] text-xs mt-1.5">{fileError}</p>}
+              </div>
 
               {submitMsg && (
                 <p className={`text-sm ${submitOk ? "text-[#5fbe8a]" : "text-[#d9716b]"}`}>{submitMsg}</p>

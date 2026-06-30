@@ -123,3 +123,30 @@ export function IconLogout({ size = 14, className }: IconProps) {
     </svg>
   );
 }
+
+export function IconUploadCloud({ size = 22, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...base}>
+      <path d="M7 18a4.5 4.5 0 0 1-.5-8.97A5.5 5.5 0 0 1 17.2 8.06 4 4 0 0 1 17 16h-1.5" />
+      <path d="M12 11v8M9 14.5L12 11.5l3 3" />
+    </svg>
+  );
+}
+
+export function IconDocument({ size = 18, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...base}>
+      <path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+      <path d="M14 3v5h5" />
+      <path d="M8.5 13h7M8.5 16.5h7" />
+    </svg>
+  );
+}
+
+export function IconBolt({ size = 14, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...base}>
+      <path d="M13 3 5 13.5h5.5L11 21l8-10.5h-5.5L13 3Z" />
+    </svg>
+  );
+}
